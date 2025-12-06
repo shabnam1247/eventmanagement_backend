@@ -13,6 +13,10 @@ const facultySchema = new mongoose.Schema({
         type: String,   
         required: true
     },
+    otp: { type: String },
+otpExpires: { type: Date },
+isVerified: { type: Boolean, default: false },
+isapproved: { type: Boolean, default: false },
     createdAt: {    
         type: Date,
         default: Date.now

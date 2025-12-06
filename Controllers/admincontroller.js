@@ -2,6 +2,11 @@
 const Admin=require('../Models/admin')
 
 const emailverification=require("../config/email")
+const dotenv = require('dotenv');
+const jwt = require('jsonwebtoken');
+dotenv.config();
+
+
 
 // Admin register
 exports.createAdmin = async (req, res) => {
@@ -74,8 +79,15 @@ exports.verifyOtp = async (req, res) => {
 
 exports.loginAdmin = async (req, res) => {
     try {
+        console.log("jhjg");
+        
         const { email, password } = req.body;
         const admin = await Admin.findOne({ email, password });
+
+              const token = jwt.sign(
+            { id: admin._id, email: admin.email },
+            process.env.JWT_SECRET,
+        );
 
         if (!admin) {
             return res.status(404).json({ message: "Admin not found" });
@@ -83,7 +95,16 @@ exports.loginAdmin = async (req, res) => {
         if (!admin.isVerified) {
             return res.status(401).json({ message: "Email not verified" });
         }
-        res.status(200).json({ message: "Login successful", admin });
+
+        res.status(200).json({ message: "Login successful",
+             token, 
+             admin:{
+                id: admin._id,
+                name: admin.name,
+                email: admin.email,
+                phonenumber: admin.phonenumber
+             },
+         });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
