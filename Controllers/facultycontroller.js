@@ -84,6 +84,10 @@ exports.loginFaculty = async (req, res) => {
             return res.status(401).json({ message: "Email not verified" });
         }
 
+        if(faculty.isapproved===false){
+            return res.status(401).json({ message: "Faculty not approved by admin yet" });
+        }
+
         res.status(200).json({ message: "Login successful", faculty });
 
     } catch (error) {
@@ -91,3 +95,15 @@ exports.loginFaculty = async (req, res) => {
     }
 };
 
+
+exports.createEvent = async (req, res) => {
+    try {
+        const { title, description, date } = req.body;
+        // Logic to create event
+
+        
+        res.status(201).json({ message: "Event created successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

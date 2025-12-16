@@ -7,5 +7,6 @@ const router=express.Router();
 router.post('/register',createFaculty)
 router.post('/otpverify',verifyFacultyOtp)
 router.post('/login',loginFaculty)
+// router.post('/eventcreate',)
 
 module.exports=router;

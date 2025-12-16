@@ -91,6 +91,10 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: "Email not verified" });
         }
 
+        if(user.isapproved===false){
+            return res.status(401).json({ message: "User not approved by admin yet" });
+        }
+
         res.status(200).json({ message: "Login successful", user });
 
     } catch (error) {
