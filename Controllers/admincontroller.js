@@ -3,6 +3,7 @@ const Admin = require('../Models/admin')
 const User = require('../Models/Users')
 const category = require('../Models/category')
 const Faculty = require('../Models/faculty')
+const Event=require('../Models/event')
 const emailverification = require("../config/email")
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
@@ -168,3 +169,163 @@ exports.addcategory=async(req,res)=>{
         res.status(500).json({ message: error.message });
     }
 }
+
+exports.createEvent = async (req, res) => {
+  try {
+    const imageUrl = req.file ? req.file.path : null;
+
+    let {
+      title,
+      description,
+      date,
+      location,
+      category,
+      maxParticipants,
+      speakers,
+      timing
+    } = req.body;
+
+    // ✅ Normalize speakers (form-data safety)
+    if (speakers && !Array.isArray(speakers)) {
+      speakers = [speakers];
+    }
+
+    const event = new Event({
+      title,
+      description,
+      date,
+      location,
+      category,          // ObjectId
+      maxParticipants,
+      speakers,          // Array of strings
+      imageUrl,
+      timing,
+      status: "upcoming"
+    });
+
+    await event.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Event created successfully",
+      event
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+exports.editEventadmin = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+
+    let {
+      title,
+      description,
+      date,
+      location,
+      category,
+      maxParticipants,
+      speakers,
+      timing,
+      status
+    } = req.body;
+
+    // ✅ Normalize speakers
+    if (speakers && !Array.isArray(speakers)) {
+      speakers = [speakers];
+    }
+
+    const event = await Event.findById(eventId);
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    // ✅ If new image uploaded, delete old image
+    if (req.file) {
+      if (event.imageUrl) {
+        const publicId = event.imageUrl
+          .split("/")
+          .slice(-1)[0]
+          .split(".")[0];
+
+        await cloudinary.uploader.destroy(`events/${publicId}`);
+      }
+
+      event.imageUrl = req.file.path;
+    }
+
+    // ✅ Update fields
+    event.title = title ?? event.title;
+    event.description = description ?? event.description;
+    event.date = date ?? event.date;
+    event.location = location ?? event.location;
+    event.category = category ?? event.category;
+    event.maxParticipants = maxParticipants ?? event.maxParticipants;
+    event.speakers = speakers ?? event.speakers;
+    event.timing = timing ?? event.timing;
+    event.status = status ?? event.status;
+
+    await event.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Event updated successfully",
+      event
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+exports.deleteEvent = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+console.log(eventId,"lllllllll");
+
+    const event = await Event.findById(eventId);
+    console.log(event ,"kkkkk");
+    
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    // ✅ Delete image from Cloudinary if exists
+    if (event.imageUrl) {
+      const publicId = event.imageUrl
+        .split("/")
+        .slice(-1)[0]
+        .split(".")[0];
+
+      await cloudinary.uploader.destroy(`events/${publicId}`);
+    }
+
+    await Event.findByIdAndDelete(eventId);
+
+    res.status(200).json({
+      success: true,
+      message: "Event deleted successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+

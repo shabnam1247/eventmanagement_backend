@@ -102,14 +102,15 @@ exports.loginFaculty = async (req, res) => {
 
 exports.createEvent = async (req, res) => {
     try {
+        console.log("kkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
+        
         console.log(req.file,'llllllllll');
         
    const imageUrl = req.file ? req.file.path : null;
    console.log(imageUrl,"jjjjjjjjjjjjjj");
 
-    const { title, description, date, location, category, maxParticipants } = req.body;
+    const { title, description, date, location, category, maxParticipants ,speakers,timing} = req.body;
    
-
     const event = new Event({
       title,
       description,
@@ -117,7 +118,10 @@ exports.createEvent = async (req, res) => {
       location,
       category,
       maxParticipants,
-      image: imageUrl
+      speakers,
+      image: imageUrl,
+      status: 'upcoming',
+      timing
     });
 
     await event.save();
@@ -132,13 +136,15 @@ exports.createEvent = async (req, res) => {
 exports.editevent = async (req, res) => {
     try {
         const eventId = req.params.id;
+       
+        console.log("ethi");
         
+
         const { title, description, date, location, category, maxParticipants } = req.body;
         const imageUrl = req.file ? req.file.path : null;
         const updatedData = {
             title,
             description,
-
             date,
             location,
             category,   
@@ -153,8 +159,49 @@ exports.editevent = async (req, res) => {
         if (!event) {
             return res.status(404).json({ message: "Event not found" });
         }
-        res.status(200).json({ message: "Event updated successfully", event });
+        res.status(200).json({ message: "Event updated successfully", event ,success:true});
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
-}
+};
+
+exports.deleteEvent = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    console.log(eventId,"llllllllllllllllll");
+    
+
+    const event = await Event.findById(eventId);
+
+    if (!event) {
+      return res.status(404).json({
+        message: "Event not found",
+        success: false
+      });
+    }
+
+    // 🔹 Delete image from Cloudinary (if exists)
+    if (event.imageUrl) {
+      const publicId = event.imageUrl
+        .split("/")
+        .slice(-1)[0]
+        .split(".")[0];
+
+      await cloudinary.uploader.destroy(`events/${publicId}`);
+    }
+
+    await Event.findByIdAndDelete(eventId);
+
+    res.status(200).json({
+      message: "Event deleted successfully",
+      success: true
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+      success: false
+    });
+  }
+};
+

@@ -23,13 +23,26 @@ const eventSchema=new mongoose.Schema({
         type:Number,
         required:true
     },
+    speakers:{
+        type:[String],
+        required:false
+    },
     image:{
         type:String,
         required:false
     },
+    timing:{
+        type:String,
+        required:true
+    },
     date:{
         type:Date,
         required:true
+    },
+    status:{
+        type:String,
+        enum:['upcoming','completed','cancelled'],
+        default:'upcoming'
     }
 });
 
