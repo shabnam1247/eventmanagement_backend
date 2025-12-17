@@ -1,5 +1,9 @@
 const Faculty=require('../Models/faculty')
 const emailverification=require("../config/email")
+const Event =require('../Models/event')
+
+
+
 
 // Create a new user
 exports.createFaculty = async (req, res) => {
@@ -98,12 +102,59 @@ exports.loginFaculty = async (req, res) => {
 
 exports.createEvent = async (req, res) => {
     try {
-        const { title, description, date } = req.body;
-        // Logic to create event
-
+        console.log(req.file,'llllllllll');
         
-        res.status(201).json({ message: "Event created successfully" });
+   const imageUrl = req.file ? req.file.path : null;
+   console.log(imageUrl,"jjjjjjjjjjjjjj");
+
+    const { title, description, date, location, category, maxParticipants } = req.body;
+   
+
+    const event = new Event({
+      title,
+      description,
+      date,
+      location,
+      category,
+      maxParticipants,
+      image: imageUrl
+    });
+
+    await event.save();
+
+
+        res.status(201).json({ message: "Event created successfully",success:true });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.editevent = async (req, res) => {
+    try {
+        const eventId = req.params.id;
+        
+        const { title, description, date, location, category, maxParticipants } = req.body;
+        const imageUrl = req.file ? req.file.path : null;
+        const updatedData = {
+            title,
+            description,
+
+            date,
+            location,
+            category,   
+            maxParticipants
+        };
+
+        if (imageUrl) {
+            updatedData.image = imageUrl;
+        }
+        const event = await Event.findByIdAndUpdate(eventId, updatedData, { new: true });
+
+        if (!event) {
+            return res.status(404).json({ message: "Event not found" });
+        }
+        res.status(200).json({ message: "Event updated successfully", event });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
