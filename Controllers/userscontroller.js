@@ -2,6 +2,7 @@
 const { response } = require('express');
 const users =require('../Models/Users')
 const Event = require('../Models/event');
+const Eventregistermodel=require('../Models/eventRegister')
 const emailverification=require("../config/email")
 
 
@@ -9,7 +10,6 @@ const emailverification=require("../config/email")
 exports.createUser = async (req, res) => {
     try {
         console.log("hj");
-        
         const { name, email, password } = req.body;
 
         // Check if user already exists
@@ -104,35 +104,7 @@ exports.loginUser = async (req, res) => {
 };
 
 
-// exports.getEvents = async (req, res) => {
-//     try {
-//         const events = await Event.find(); // Assuming Event is a Mongoose model 
-
-//         res.status(200).json({message:"Events fetched successfully", events});
-//     } catch (error) {
-//         res.status(500).json({ message: error.message });
-//     }
-// };
-
-// exports.searchEventByName = async (req, res) => {
-//   try {
-//     const { title } = req.query;
-
-//     if (!title) {
-//       return res.status(400).json({ message: 'Event title is required' });
-//     }
-
-//     const events = await Event.find({
-//       title: { $regex: title, $options: 'i' } // case-insensitive search
-//     });
-
-//     res.status(200).json(events);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-
+// search ,sort,filter,listing
 exports.getEvents = async (req, res) => {
   try {
     const { title, category,sort,status } = req.query;
@@ -175,7 +147,67 @@ exports.getEvents = async (req, res) => {
 };
 
 
+// need to take user id form auth middleware
+exports.registerForEvent = async (req, res) => {
+  try {
+    const userId = req.params.userid; 
+    const { eventId, firstName, lastName, email, phone, department, year, comments } = req.body;
+    console.log(eventId);
 
+    if(!eventId || !department || !year || !firstName || !lastName || !email || !phone ){
+        return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    if (event.status !== 'upcoming') {
+      return res.status(400).json({ message: "Registration closed" });
+    }
+
+    //  prevent duplicate registration
+    const alreadyRegistered = await Eventregistermodel.findOne({
+      eventid: eventId,
+      userid: userId
+    });
+
+    if (alreadyRegistered) {
+      return res.status(400).json({ message: "Already registered" });
+    }
+
+    // capacity check
+    const count = await Eventregistermodel.countDocuments({
+      eventid: eventId
+    });
+
+    if (count >= event.maxParticipants) {
+      return res.status(400).json({ message: "Event is full" });
+    }
+
+    const registration = new Eventregistermodel({
+        firstName,
+        lastName,
+        email,
+        phone,
+      eventid: eventId,
+      userid: userId,
+      department,
+      year,
+      comments
+    });
+
+    await registration.save();
+
+    res.status(201).json({
+      message: "Successfully registered for event",
+      success: true
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 
 

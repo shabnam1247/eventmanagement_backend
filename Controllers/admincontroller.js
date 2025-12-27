@@ -182,12 +182,20 @@ exports.createEvent = async (req, res) => {
       category,
       maxParticipants,
       speakers,
-      timing
+      timing,
+      eventScheduletime,
+      venue
     } = req.body;
 
     // ✅ Normalize speakers (form-data safety)
     if (speakers && !Array.isArray(speakers)) {
       speakers = [speakers];
+    }
+    let parsedSchedule = [];
+
+    if(eventScheduletime){
+      parsedSchedule = JSON.parse(eventScheduletime);
+
     }
 
     const event = new Event({
@@ -200,7 +208,9 @@ exports.createEvent = async (req, res) => {
       speakers,          // Array of strings
       imageUrl,
       timing,
-      status: "upcoming"
+      venue,
+      status: "upcoming",
+      eventScheduletime: parsedSchedule
     });
 
     await event.save();

@@ -1,6 +1,20 @@
 const mongoose=require('mongoose');
 const category = require('./category');
+
+const scheduleSchema = new mongoose.Schema({
+  time: {
+    type: String,
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  }
+}, { _id: false });
+
+
 const eventSchema=new mongoose.Schema({
+
     title:{
         type:String,
         required:true
@@ -17,6 +31,10 @@ const eventSchema=new mongoose.Schema({
         type:mongoose.Schema.Types.ObjectId,
         ref:'Category',
         required:true
+    },
+    venue:{
+        type:String,
+        required:false
     },
 
     maxParticipants:{
@@ -35,14 +53,16 @@ const eventSchema=new mongoose.Schema({
         type:String,
         required:true
     },
+    eventScheduletime:[scheduleSchema],
     date:{
         type:Date,
         required:true
     },
     status:{
         type:String,
-        enum:['upcoming',"pastevents"],
+        enum:['upcoming',"pastevents","ongoing","cancelled"],
         default:'upcoming'
+
     }
 });
 

@@ -101,16 +101,33 @@ exports.loginFaculty = async (req, res) => {
 
 
 exports.createEvent = async (req, res) => {
-    try {
-        console.log("kkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
-        
-        console.log(req.file,'llllllllll');
-        
-   const imageUrl = req.file ? req.file.path : null;
-   console.log(imageUrl,"jjjjjjjjjjjjjj");
+  try {
+    console.log(req.file, 'Uploaded file');
 
-    const { title, description, date, location, category, maxParticipants ,speakers,timing} = req.body;
-   
+    const imageUrl = req.file ? req.file.path : null;
+
+    const {
+      title,
+      description,
+      date,
+      location,
+      category,
+      maxParticipants,
+      speakers,
+      timing,
+      eventScheduletime,
+        venue
+    } = req.body;
+
+    console.log(eventScheduletime,"m");
+    
+
+    // 🔹 Parse eventSchedule from form-data
+    let parsedSchedule = [];
+    if (eventScheduletime) {
+      parsedSchedule = JSON.parse(eventScheduletime);
+    }
+
     const event = new Event({
       title,
       description,
@@ -119,19 +136,27 @@ exports.createEvent = async (req, res) => {
       category,
       maxParticipants,
       speakers,
+      timing,
       image: imageUrl,
       status: 'upcoming',
-      timing
+      eventScheduletime: parsedSchedule,
+      venue
     });
 
     await event.save();
 
-
-        res.status(201).json({ message: "Event created successfully",success:true });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+    res.status(201).json({
+      message: "Event created successfully",
+      success: true,
+      event
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
+
+
+
 
 exports.editevent = async (req, res) => {
     try {
