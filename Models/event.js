@@ -41,7 +41,7 @@ const eventSchema=new mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['upcoming','completed','cancelled'],
+        enum:['upcoming',"pastevents"],
         default:'upcoming'
     }
 });

@@ -19,4 +19,5 @@ router.put('/eventedit/:id',upload.single('image'),editEventadmin)
 router.delete('/eventdelete/:id',deleteEvent)
 
 
+
 module.exports=router;
