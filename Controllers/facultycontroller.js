@@ -8,7 +8,7 @@ const Event =require('../Models/event')
 // Create a new user
 exports.createFaculty = async (req, res) => {
     try {
-        const { name, email, password, phonenumber } = req.body;
+        const { name, email, password, phonenumber, facultyId, department } = req.body;
 
         // Check if faculty already exists
         const exist = await Faculty.findOne({ email });
@@ -25,6 +25,8 @@ exports.createFaculty = async (req, res) => {
             email,
             password,
             phonenumber,
+            facultyId,
+            department,
             otp,
             otpExpires: otpExpiry
         });
@@ -135,7 +137,7 @@ exports.createEvent = async (req, res) => {
       location,
       category,
       maxParticipants,
-      speakers,
+      speakers: speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : [],
       timing,
       image: imageUrl,
       status: 'upcoming',
@@ -165,7 +167,7 @@ exports.editevent = async (req, res) => {
         console.log("ethi");
         
 
-        const { title, description, date, location, category, maxParticipants } = req.body;
+        const { title, description, date, location, category, maxParticipants, speakers } = req.body;
         const imageUrl = req.file ? req.file.path : null;
         const updatedData = {
             title,
@@ -173,7 +175,8 @@ exports.editevent = async (req, res) => {
             date,
             location,
             category,   
-            maxParticipants
+            maxParticipants,
+            speakers: speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : undefined
         };
 
         if (imageUrl) {
@@ -206,8 +209,8 @@ exports.deleteEvent = async (req, res) => {
     }
 
     // 🔹 Delete image from Cloudinary (if exists)
-    if (event.imageUrl) {
-      const publicId = event.imageUrl
+    if (event.image) {
+      const publicId = event.image
         .split("/")
         .slice(-1)[0]
         .split(".")[0];

@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
@@ -15,10 +14,24 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-        otp: { type: String },
-otpExpires: { type: Date },
-isVerified: { type: Boolean, default: false },
-isapproved: { type: Boolean, default: false },
+    regno: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    department: {
+        type: String
+    },
+    year: {
+        type: String
+    },
+    phonenumber: {
+        type: String
+    },
+    otp: { type: String },
+    otpExpires: { type: Date },
+    isVerified: { type: Boolean, default: false },
+    isapproved: { type: Boolean, default: false },
 
     createdAt: {
         type: Date,

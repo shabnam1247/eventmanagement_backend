@@ -58,6 +58,11 @@ const eventSchema=new mongoose.Schema({
         type:Date,
         required:true
     },
+    organizer:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Faculty',
+        required:false
+    },
     status:{
         type:String,
         enum:['upcoming',"pastevents","ongoing","cancelled"],

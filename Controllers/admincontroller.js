@@ -4,6 +4,7 @@ const User = require('../Models/Users')
 const category = require('../Models/category')
 const Faculty = require('../Models/faculty')
 const Event=require('../Models/event')
+const EventRegistration = require('../Models/eventRegister')
 const emailverification = require("../config/email")
 const jwt = require('jsonwebtoken');
 
@@ -49,6 +50,104 @@ exports.loginAdmin = async (req, res) => {
 };
 
 
+
+exports.getAllEvents=async(req,res)=>{
+  try {
+    const events=await Event.find().populate('category').populate('organizer','name').populate('speakers','name')
+
+    if(!events){
+      return res.status(404).json({message:"No events found"})
+    }
+   
+    res.status(200).json({
+      success:true,
+      message:"Events fetched successfully",
+      events
+    })
+  } catch (error) {
+    res.status(500).json({message:error.message})
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Get all event registrations for admin
+exports.getAllRegistrations = async (req, res) => {
+  try {
+    const registrations = await EventRegistration.find()
+      .populate('eventid', 'title date status')
+      .populate('userid', 'name email')
+      .sort({ registeredAt: -1 });
+
+      console.log(registrations,"tttttttttt");
+      
+
+    res.status(200).json({
+      success: true,
+      message: "Registrations fetched successfully",
+      registrations
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get all approved faculties for organizer dropdown
+exports.getFaculties = async (req, res) => {
+  try {
+    const faculties = await Faculty.find({ isapproved: true })
+      .select('name email _id');
+
+    res.status(200).json({
+      success: true,
+      message: "Faculties fetched successfully",
+      faculties
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get all registered faculties (for Admin management)
+exports.getAllFacultiesAdmin = async (req, res) => {
+  try {
+    const faculties = await Faculty.find({})
+      .select('-password -otp -otpExpires')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "All faculties fetched successfully",
+      faculties
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 exports.approveUser = async (req, res) => {
     try {
         const userId = req.params.id;
@@ -67,6 +166,26 @@ exports.approveUser = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 }
+
+// Get all registered students (for Admin management)
+exports.getAllStudentsAdmin = async (req, res) => {
+  try {
+    const students = await User.find({})
+      .select('-password -otp -otpExpires')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "All students fetched successfully",
+      students
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 
 exports.approvefaculty = async (req, res) => {
     try {
@@ -117,10 +236,11 @@ exports.createEvent = async (req, res) => {
       speakers,
       timing,
       eventScheduletime,
-      venue
+      venue,
+      organizer
     } = req.body;
 
-    // ✅ Normalize speakers (form-data safety)
+    //  Normalize speakers (form-data safety)
     if (speakers && !Array.isArray(speakers)) {
       speakers = [speakers];
     }
@@ -138,10 +258,11 @@ exports.createEvent = async (req, res) => {
       location,
       category,          // ObjectId
       maxParticipants,
-      speakers,          // Array of strings
-      imageUrl,
+      speakers: speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : [],
+      image: imageUrl,
       timing,
       venue,
+      organizer: (organizer && organizer.trim() !== "") ? organizer : null,
       status: "upcoming",
       eventScheduletime: parsedSchedule
     });
@@ -177,7 +298,7 @@ exports.editEventadmin = async (req, res) => {
       status
     } = req.body;
 
-    // ✅ Normalize speakers
+    //  Normalize speakers
     if (speakers && !Array.isArray(speakers)) {
       speakers = [speakers];
     }
@@ -191,10 +312,10 @@ exports.editEventadmin = async (req, res) => {
       });
     }
 
-    // ✅ If new image uploaded, delete old image
+    //  If new image uploaded, delete old image
     if (req.file) {
-      if (event.imageUrl) {
-        const publicId = event.imageUrl
+      if (event.image) {
+        const publicId = event.image
           .split("/")
           .slice(-1)[0]
           .split(".")[0];
@@ -202,7 +323,7 @@ exports.editEventadmin = async (req, res) => {
         await cloudinary.uploader.destroy(`events/${publicId}`);
       }
 
-      event.imageUrl = req.file.path;
+      event.image = req.file.path;
     }
 
     // ✅ Update fields
@@ -212,9 +333,15 @@ exports.editEventadmin = async (req, res) => {
     event.location = location ?? event.location;
     event.category = category ?? event.category;
     event.maxParticipants = maxParticipants ?? event.maxParticipants;
-    event.speakers = speakers ?? event.speakers;
+    event.speakers = speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : event.speakers;
     event.timing = timing ?? event.timing;
     event.status = status ?? event.status;
+    event.venue = req.body.venue ?? event.venue;
+    event.organizer = (req.body.organizer && req.body.organizer.trim() !== "") ? req.body.organizer : event.organizer;
+
+    if (req.body.eventScheduletime) {
+      event.eventScheduletime = JSON.parse(req.body.eventScheduletime);
+    }
 
     await event.save();
 
@@ -224,6 +351,48 @@ exports.editEventadmin = async (req, res) => {
       event
     });
 
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get single event by ID
+exports.getEventById = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id)
+      .populate('category', 'name')
+      .populate('organizer', 'name email');
+      console.log(event,"event");
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      event
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+// Get all categories
+exports.getcategories = async (req, res) => {
+  try {
+    const categories = await category.find();
+    res.status(200).json({
+      success: true,
+      categories
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -248,8 +417,8 @@ console.log(eventId,"lllllllll");
     }
 
     // ✅ Delete image from Cloudinary if exists
-    if (event.imageUrl) {
-      const publicId = event.imageUrl
+    if (event.image) {
+      const publicId = event.image
         .split("/")
         .slice(-1)[0]
         .split(".")[0];
@@ -269,6 +438,42 @@ console.log(eventId,"lllllllll");
       success: false,
       message: error.message
     });
+  }
+};
+
+// Add a new faculty member (Admin only)
+exports.addFaculty = async (req, res) => {
+  try {
+    const { name, email, password, phonenumber, facultyId, department, designation, experience, status } = req.body;
+
+    const exist = await Faculty.findOne({ email });
+    if (exist) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    const newFaculty = new Faculty({
+      name,
+      email,
+      password, // In a real app, hash this
+      phonenumber,
+      facultyId,
+      department,
+      designation,
+      experience,
+      status: status || 'active',
+      isVerified: true, // Pre-verified by admin
+      isapproved: true  // Pre-approved by admin
+    });
+
+    await newFaculty.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Faculty member added successfully",
+      faculty: newFaculty
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

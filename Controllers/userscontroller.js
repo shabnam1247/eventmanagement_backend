@@ -10,7 +10,7 @@ const emailverification=require("../config/email")
 exports.createUser = async (req, res) => {
     try {
         console.log("hj");
-        const { name, email, password } = req.body;
+        const { name, email, password, regno, department, year, phonenumber } = req.body;
 
         // Check if user already exists
         const exist = await users.findOne({ email });
@@ -27,6 +27,10 @@ exports.createUser = async (req, res) => {
             name,
             email,
             password,
+            regno,
+            department,
+            year,
+            phonenumber,
             otp,
             otpExpires: otpExpiry
         });
@@ -80,20 +84,23 @@ exports.verifyUserOtp = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { identifier, password } = req.body; // identifier can be email or regno
 
-        const user = await users.findOne({ email, password });
+        const user = await users.findOne({
+            $or: [{ email: identifier }, { regno: identifier }],
+            password: password
+        });
 
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "Invalid credentials. Please check your email/register number and password." });
         }
 
         if (!user.isVerified) {
-            return res.status(401).json({ message: "Email not verified" });
+            return res.status(401).json({ message: "Email not verified. Please verify your account.", email: user.email });
         }
 
-        if(user.isapproved===false){
-            return res.status(401).json({ message: "User not approved by admin yet" });
+        if (user.isapproved === false) {
+            return res.status(401).json({ message: "Your account is pending admin approval. Please try again later." });
         }
 
         res.status(200).json({ message: "Login successful", user });
