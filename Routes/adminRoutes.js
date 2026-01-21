@@ -7,8 +7,7 @@ const upload =require("../middleware/upload");
 const { createEvent,  deleteEvent } = require("../Controllers/admincontroller");
 
 // jwt
-// router.post('/register',createAdmin)
-// router.post('/otpverify',verifyOtp)
+
 router.post('/login',loginAdmin)
 router.put('/approveuser/:id',approveUser)
 router.put('/approvefaculty/:id',approvefaculty)

@@ -1,8 +1,11 @@
 const express = require("express");
 const cors = require("cors");
-require('dotenv').config()
+const dotenv = require('dotenv');
+
+dotenv.config();
+
 const app = express();
-require("./DB/connection")
+require("./DB/connection");
 const userRoutes = require("./Routes/userRoutes");
 const adminRoutes=require("./Routes/adminRoutes")
 const facultyRoutes=require("./Routes/facultyRoutes")
@@ -19,7 +22,7 @@ app.use(cors(
 app.use(express.json());
 
 app.use("/api/users", userRoutes);
-app.use("/api/admins",adminRoutes);
+app.use("/api/admin",adminRoutes);
 app.use("/api/faculty",facultyRoutes);
 
 app.listen(5000, () => {

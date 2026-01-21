@@ -10,10 +10,6 @@ const adminSchema = new mongoose.Schema({
         required: true,
         
     },
-    phonenumber: {
-        type: String,
-        required: false,
-    },
     password: {
         type: String,
         required: true
