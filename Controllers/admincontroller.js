@@ -7,7 +7,7 @@ const Event=require('../Models/event')
 const EventRegistration = require('../Models/eventRegister')
 const emailverification = require("../config/email")
 const jwt = require('jsonwebtoken');
-
+const cloudinary = require("../config/cloudinary");
 
 exports.loginAdmin = async (req, res) => {
     try {
@@ -313,6 +313,8 @@ exports.editEventadmin = async (req, res) => {
     }
 
     //  If new image uploaded, delete old image
+    console.log(req.file,"fikeee");
+    
     if (req.file) {
       if (event.image) {
         const publicId = event.image
@@ -344,6 +346,8 @@ exports.editEventadmin = async (req, res) => {
     }
 
     await event.save();
+
+    console.log(event.image,"event")
 
     res.status(200).json({
       success: true,
