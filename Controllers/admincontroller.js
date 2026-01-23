@@ -7,7 +7,20 @@ const Event=require('../Models/event')
 const EventRegistration = require('../Models/eventRegister')
 const emailverification = require("../config/email")
 const jwt = require('jsonwebtoken');
+const Feedback = require('../Models/feedback')
 const cloudinary = require("../config/cloudinary");
+
+exports.getFeedbacks = async (req, res) => {
+  try {
+    const feedbacks = await Feedback.find().sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      feedbacks
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 exports.loginAdmin = async (req, res) => {
     try {
@@ -404,6 +417,22 @@ exports.getcategories = async (req, res) => {
     });
   }
 };
+
+exports.deleteCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await category.findByIdAndDelete(id);
+    res.status(200).json({
+      success: true,
+      message: "Category eliminated successfully"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 exports.deleteEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -481,3 +510,143 @@ exports.addFaculty = async (req, res) => {
   }
 };
 
+// Add a new student (Admin only)
+exports.addStudent = async (req, res) => {
+  try {
+    const { name, email, password, phonenumber, regno, department, year } = req.body;
+
+    const exist = await User.findOne({ email });
+    if (exist) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    const newStudent = new User({
+      name,
+      email,
+      password, // Hash this in production
+      phonenumber,
+      regno,
+      department,
+      year,
+      isVerified: true,
+      isapproved: true
+    });
+
+    await newStudent.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Student added successfully",
+      student: newStudent
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const totalEvents = await Event.countDocuments();
+    const upcomingEvents = await Event.countDocuments({ status: 'upcoming' });
+    const pastEvents = await Event.countDocuments({ status: 'pastevents' });
+    const totalStudents = await User.countDocuments();
+    const totalFaculties = await Faculty.countDocuments();
+    const totalRegistrations = await EventRegistration.countDocuments();
+    const totalCategories = await category.countDocuments();
+
+    // Events by Category breakdown
+    const eventCategories = await Event.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "_id",
+          foreignField: "_id",
+          as: "categoryDetails"
+        }
+      },
+      {
+        $unwind: {
+          path: "$categoryDetails",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: { $ifNull: ["$categoryDetails.name", "Uncategorized"] },
+          count: 1
+        }
+      }
+    ]);
+
+    // Latest Registrations
+    const latestRegistrations = await EventRegistration.find()
+      .populate('eventid', 'title')
+      .populate('userid', 'name email')
+      .sort({ registeredAt: -1 })
+      .limit(5);
+
+    // Popular Events (most registrations)
+    const popularEvents = await EventRegistration.aggregate([
+      {
+        $group: {
+          _id: "$eventid",
+          regCount: { $sum: 1 }
+        }
+      },
+      { $sort: { regCount: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: "events",
+          localField: "_id",
+          foreignField: "_id",
+          as: "eventDetails"
+        }
+      },
+      { $unwind: "$eventDetails" },
+      {
+        $project: {
+          _id: "$_id",
+          title: "$eventDetails.title",
+          category: "$eventDetails.category",
+          regCount: 1
+        }
+      }
+    ]);
+
+    const stats = {
+      totalEvents,
+      upcomingEvents,
+      pastEvents,
+      totalStudents,
+      totalFaculties,
+      totalUsers: totalStudents + totalFaculties,
+      totalRegistrations,
+      totalCategories,
+      eventCategories,
+      latestRegistrations,
+      popularEvents,
+      totalAttendance: 0, // Placeholder since not tracked
+      avgAttendanceRate: 0 // Placeholder
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Dashboard stats fetched successfully",
+      stats
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

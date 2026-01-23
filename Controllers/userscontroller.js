@@ -4,6 +4,7 @@ const users =require('../Models/Users')
 const Event = require('../Models/event');
 const Eventregistermodel=require('../Models/eventRegister')
 const emailverification=require("../config/email")
+const Feedback = require('../Models/feedback')
 
 
 // Create a new user
@@ -215,10 +216,29 @@ exports.registerForEvent = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.submitFeedback = async (req, res) => {
+  try {
+    const { name, email, phone, rating, message } = req.body;
 
+    if (!name || !email || !rating || !message) {
+      return res.status(400).json({ message: "All required fields must be filled" });
+    }
 
+    const newFeedback = new Feedback({
+      name,
+      email,
+      phone,
+      rating,
+      message
+    });
 
+    await newFeedback.save();
 
-
-
-
+    res.status(201).json({
+      success: true,
+      message: "Feedback submitted successfully"
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

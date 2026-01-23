@@ -1,11 +1,9 @@
-const Faculty=require('../Models/faculty')
-const emailverification=require("../config/email")
-const Event =require('../Models/event')
+const Faculty = require('../Models/faculty');
+const emailverification = require("../config/email");
+const Event = require('../Models/event');
+const cloudinary = require("../config/cloudinary");
 
-
-
-
-// Create a new user
+// Create a new faculty
 exports.createFaculty = async (req, res) => {
     try {
         const { name, email, password, phonenumber, facultyId, department } = req.body;
@@ -33,7 +31,7 @@ exports.createFaculty = async (req, res) => {
 
         await newFaculty.save();
 
-        // Function same as createAdmin - send OTP
+        // Send OTP
         emailverification(email, otp);
 
         res.status(201).json({
@@ -49,17 +47,10 @@ exports.createFaculty = async (req, res) => {
 
 exports.verifyFacultyOtp = async (req, res) => {
     try {
-        console.log("jkkkjjkjkhjkhkjhh");
-        
         const { otp } = req.body;
-
         const faculty = await Faculty.findOne({ otp: otp });
 
         if (!faculty) return res.status(404).json({ message: "Faculty not found" });
-
-        if (faculty.otp !== otp) {
-            return res.status(400).json({ message: "Invalid OTP" });
-        }
 
         if (faculty.otpExpires < Date.now())
             return res.status(400).json({ message: "OTP expired" });
@@ -90,7 +81,7 @@ exports.loginFaculty = async (req, res) => {
             return res.status(401).json({ message: "Email not verified" });
         }
 
-        if(faculty.isapproved===false){
+        if (faculty.isapproved === false) {
             return res.status(401).json({ message: "Faculty not approved by admin yet" });
         }
 
@@ -101,135 +92,158 @@ exports.loginFaculty = async (req, res) => {
     }
 };
 
-
 exports.createEvent = async (req, res) => {
-  try {
-    console.log(req.file, 'Uploaded file');
-
-    const imageUrl = req.file ? req.file.path : null;
-
-    const {
-      title,
-      description,
-      date,
-      location,
-      category,
-      maxParticipants,
-      speakers,
-      timing,
-      eventScheduletime,
-        venue
-    } = req.body;
-
-    console.log(eventScheduletime,"m");
-    
-
-    // 🔹 Parse eventSchedule from form-data
-    let parsedSchedule = [];
-    if (eventScheduletime) {
-      parsedSchedule = JSON.parse(eventScheduletime);
-    }
-
-    const event = new Event({
-      title,
-      description,
-      date,
-      location,
-      category,
-      maxParticipants,
-      speakers: speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : [],
-      timing,
-      image: imageUrl,
-      status: 'upcoming',
-      eventScheduletime: parsedSchedule,
-      venue
-    });
-
-    await event.save();
-
-    res.status(201).json({
-      message: "Event created successfully",
-      success: true,
-      event
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-
-
-exports.editevent = async (req, res) => {
     try {
-        const eventId = req.params.id;
-       
-        console.log("ethi");
-        
-
-        const { title, description, date, location, category, maxParticipants, speakers } = req.body;
         const imageUrl = req.file ? req.file.path : null;
-        const updatedData = {
+
+        let {
             title,
             description,
             date,
             location,
-            category,   
+            category,
             maxParticipants,
-            speakers: speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : undefined
-        };
+            speakers,
+            timing,
+            eventScheduletime,
+            venue,
+            organizer
+        } = req.body;
 
-        if (imageUrl) {
-            updatedData.image = imageUrl;
+        // Parse eventSchedule if provided as string
+        let parsedSchedule = [];
+        if (eventScheduletime) {
+            try {
+                parsedSchedule = JSON.parse(eventScheduletime);
+            } catch (e) {
+                console.error("Schedule parse error:", e);
+            }
         }
-        const event = await Event.findByIdAndUpdate(eventId, updatedData, { new: true });
+
+        const event = new Event({
+            title,
+            description,
+            date,
+            location,
+            category,
+            maxParticipants,
+            speakers: speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : [],
+            image: imageUrl,
+            timing,
+            venue,
+            organizer: organizer || null,
+            status: 'upcoming',
+            eventScheduletime: parsedSchedule
+        });
+
+        await event.save();
+
+        res.status(201).json({
+            message: "Event created successfully",
+            success: true,
+            event
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.editevent = async (req, res) => {
+    try {
+        const eventId = req.params.id;
+        const event = await Event.findById(eventId);
 
         if (!event) {
             return res.status(404).json({ message: "Event not found" });
         }
-        res.status(200).json({ message: "Event updated successfully", event ,success:true});
+
+        let {
+            title,
+            description,
+            date,
+            location,
+            category,
+            maxParticipants,
+            speakers,
+            timing,
+            venue,
+            status,
+            eventScheduletime,
+            organizer
+        } = req.body;
+
+        // If new image uploaded, delete old one from Cloudinary
+        if (req.file) {
+            if (event.image) {
+                const publicId = event.image.split("/").slice(-1)[0].split(".")[0];
+                await cloudinary.uploader.destroy(`events/${publicId}`);
+            }
+            event.image = req.file.path;
+        }
+
+        // Update fields
+        event.title = title ?? event.title;
+        event.description = description ?? event.description;
+        event.date = date ?? event.date;
+        event.location = location ?? event.location;
+        event.category = category ?? event.category;
+        event.maxParticipants = maxParticipants ?? event.maxParticipants;
+        event.speakers = speakers ? (Array.isArray(speakers) ? speakers : speakers.split(',').map(s => s.trim())) : event.speakers;
+        event.timing = timing ?? event.timing;
+        event.venue = venue ?? event.venue;
+        event.status = status ?? event.status;
+        event.organizer = organizer ?? event.organizer;
+
+        if (eventScheduletime) {
+            try {
+                event.eventScheduletime = JSON.parse(eventScheduletime);
+            } catch (e) {
+                console.error("Schedule parse error:", e);
+            }
+        }
+
+        await event.save();
+
+        res.status(200).json({
+            message: "Event updated successfully",
+            success: true,
+            event
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
 exports.deleteEvent = async (req, res) => {
-  try {
-    const eventId = req.params.id;
-    console.log(eventId,"llllllllllllllllll");
-    
+    try {
+        const eventId = req.params.id;
+        const event = await Event.findById(eventId);
 
-    const event = await Event.findById(eventId);
+        if (!event) {
+            return res.status(404).json({
+                message: "Event not found",
+                success: false
+            });
+        }
 
-    if (!event) {
-      return res.status(404).json({
-        message: "Event not found",
-        success: false
-      });
+        // Delete image from Cloudinary
+        if (event.image) {
+            const publicId = event.image.split("/").slice(-1)[0].split(".")[0];
+            await cloudinary.uploader.destroy(`events/${publicId}`);
+        }
+
+        await Event.findByIdAndDelete(eventId);
+
+        res.status(200).json({
+            message: "Event deleted successfully",
+            success: true
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+            success: false
+        });
     }
-
-    // 🔹 Delete image from Cloudinary (if exists)
-    if (event.image) {
-      const publicId = event.image
-        .split("/")
-        .slice(-1)[0]
-        .split(".")[0];
-
-      await cloudinary.uploader.destroy(`events/${publicId}`);
-    }
-
-    await Event.findByIdAndDelete(eventId);
-
-    res.status(200).json({
-      message: "Event deleted successfully",
-      success: true
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-      success: false
-    });
-  }
 };
 

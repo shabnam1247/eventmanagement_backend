@@ -1,5 +1,5 @@
 const express=require("express");
-const { createUser, verifyUserOtp, loginUser, getEvents, searchEventByName, Eventregister, registerForEvent } = require("../Controllers/userscontroller");
+const { createUser, verifyUserOtp, loginUser, getEvents, searchEventByName, Eventregister, registerForEvent, submitFeedback } = require("../Controllers/userscontroller");
 
 const router=express.Router();
 
@@ -9,6 +9,7 @@ router.post('/otpverify',verifyUserOtp)
 router.post('/login',loginUser) 
 router.get('/events',getEvents)
 router.post('/eventregister/:userid',registerForEvent)
+router.post('/feedback', submitFeedback)
 
 // resendotp
 module.exports=router;
