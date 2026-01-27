@@ -1,9 +1,10 @@
 
+
 const { response } = require('express');
-const users =require('../Models/Users')
+const users = require('../Models/Users')
 const Event = require('../Models/event');
-const Eventregistermodel=require('../Models/eventRegister')
-const emailverification=require("../config/email")
+const Eventregistermodel = require('../Models/eventRegister')
+const { sentotpemail, sendEventConfirmation } = require("../config/email")
 const Feedback = require('../Models/feedback')
 
 
@@ -39,7 +40,7 @@ exports.createUser = async (req, res) => {
         await newUser.save();
 
         // Send OTP via mail function
-        emailverification(email, otp);
+        sentotpemail(email, otp);
         res.status(201).json({
             message: "User created successfully. OTP sent to email.",
             userId: newUser._id
@@ -115,45 +116,179 @@ exports.loginUser = async (req, res) => {
 // search ,sort,filter,listing
 exports.getEvents = async (req, res) => {
   try {
-    const { title, category,sort,status } = req.query;
+    const { title, category, sort, status } = req.query;
 
     let filter = {};
-    let sortOption={};
+    let sortOption = {};
 
-    // 🔍 Search by event title
+    //  Search by event title
     if (title) {
       filter.title = { $regex: title, $options: 'i' };
     }
 
-    // 🏷️ Filter by category (ObjectId)
+    //  Filter by category (ObjectId)
     if (category && category !== 'all') {
       filter.category = category;
     }
 
-
-    if(status && status!== 'all'){
-        filter.status=status;
+    if (status && status !== 'all') {
+      filter.status = status;
     }
 
-    if(sort === 'seats'){
-        sortOption={maxParticipants:-1}
-    }else if(sort === 'date'){
-        sortOption={date:1}
+    if (sort === 'seats') {
+      sortOption = { maxParticipants: -1 };
+    } else if (sort === 'date') {
+      sortOption = { date: 1 };
     }
 
     const events = await Event.find(filter)
       .populate('category', 'name')
       .sort(sortOption);
 
+    // Get registration count for each event
+    const eventsWithCount = await Promise.all(
+      events.map(async (event) => {
+        const registeredCount = await Eventregistermodel.countDocuments({
+          eventid: event._id
+        });
+
+        return {
+          _id: event._id,
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          category: event.category?.name || 'General',
+          venue: event.venue,
+          maxRegistrations: event.maxParticipants,
+          maxParticipants: event.maxParticipants,
+          speakers: event.speakers || [],
+          images: event.image ? [event.image] : [],
+          time: event.timing,
+          timing: event.timing,
+          eventScheduletime: event.eventScheduletime || [],
+          date: event.date,
+          organizer: event.organizer,
+          status: event.status,
+          registeredCount: registeredCount
+        };
+      })
+    );
+
     res.status(200).json({
+      success: true,
       message: "Events fetched successfully",
-      events
+      events: eventsWithCount
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 
+// Get single event by ID
+exports.getEventById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const event = await Event.findById(id).populate('category', 'name');
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    // Get registration count for this event
+    const registeredCount = await Eventregistermodel.countDocuments({
+      eventid: event._id
+    });
+
+    const eventData = {
+      _id: event._id,
+      title: event.title,
+      description: event.description,
+      location: event.location,
+      category: event.category?.name || 'General',
+      venue: event.venue,
+      maxRegistrations: event.maxParticipants,
+      maxParticipants: event.maxParticipants,
+      speakers: event.speakers || [],
+      images: event.image ? [event.image] : [],
+      time: event.timing,
+      timing: event.timing,
+      eventScheduletime: event.eventScheduletime || [],
+      date: event.date,
+      organizer: event.organizer,
+      status: event.status,
+      registeredCount: registeredCount,
+      availableSeats: event.maxParticipants - registeredCount
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Event fetched successfully",
+      event: eventData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+// Check if user is already registered for an event
+exports.checkRegistrationStatus = async (req, res) => {
+  try {
+    const { eventId, userId } = req.params;
+
+    // Check if event exists
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    // Check if user is registered
+    const registration = await Eventregistermodel.findOne({
+      eventid: eventId,
+      userid: userId
+    });
+
+    if (registration) {
+      return res.status(200).json({
+        success: true,
+        registered: true,
+        registration: {
+          id: registration._id,
+          firstName: registration.firstName,
+          lastName: registration.lastName,
+          email: registration.email,
+          phone: registration.phone,
+          department: registration.department,
+          year: registration.year,
+          registeredAt: registration.createdAt
+        }
+      });
+    } else {
+      return res.status(200).json({
+        success: true,
+        registered: false
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 
 // need to take user id form auth middleware
 exports.registerForEvent = async (req, res) => {
@@ -208,12 +343,51 @@ exports.registerForEvent = async (req, res) => {
 
     await registration.save();
 
+    // Send confirmation email
+    try {
+      await sendEventConfirmation(email, {
+        title: event.title,
+        date: event.date,
+        timing: event.timing,
+        location: event.location,
+        category: event.category?.name || 'General'
+      }, {
+        registrationId: registration._id,
+        firstName,
+        lastName,
+        email,
+        phone,
+        department,
+        year
+      });
+    } catch (emailError) {
+      console.error("Error sending confirmation email:", emailError);
+      // Continue even if email fails
+    }
+
     res.status(201).json({
       message: "Successfully registered for event",
-      success: true
+      success: true,
+      registration: {
+        id: registration._id,
+        eventId: eventId,
+        eventTitle: event.title,
+        eventDate: event.date,
+        eventTime: event.timing,
+        eventLocation: event.location,
+        firstName,
+        lastName,
+        email,
+        phone,
+        department,
+        year
+      }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 exports.submitFeedback = async (req, res) => {
@@ -240,5 +414,84 @@ exports.submitFeedback = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all events registered by a user
+exports.getUserRegistrations = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const registrations = await Eventregistermodel.find({ userid: userId })
+      .populate({
+        path: 'eventid',
+        populate: { path: 'category', select: 'name' }
+      })
+      .sort({ createdAt: -1 });
+
+    const formattedRegistrations = registrations.map(reg => ({
+      _id: reg._id,
+      event: reg.eventid ? {
+        _id: reg.eventid._id,
+        title: reg.eventid.title,
+        date: reg.eventid.date,
+        timing: reg.eventid.timing,
+        location: reg.eventid.location,
+        category: reg.eventid.category?.name || 'General',
+        image: reg.eventid.image,
+        status: reg.eventid.status
+      } : null,
+      registeredAt: reg.createdAt,
+      firstName: reg.firstName,
+      lastName: reg.lastName,
+      department: reg.department,
+      year: reg.year
+    }));
+
+    res.status(200).json({
+      success: true,
+      registrations: formattedRegistrations
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Cancel event registration
+exports.cancelRegistration = async (req, res) => {
+  try {
+    const { registrationId } = req.params;
+
+    const registration = await Eventregistermodel.findById(registrationId).populate('eventid');
+    if (!registration) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found"
+      });
+    }
+
+    // Optional: Add logic to check if cancellation is allowed (e.g. 24h before)
+    // For now, allow cancellation if event is upcoming
+    if (registration.eventid.status !== 'upcoming') {
+      return res.status(400).json({
+        success: false,
+        message: "Can only cancel registrations for upcoming events"
+      });
+    }
+
+    await Eventregistermodel.findByIdAndDelete(registrationId);
+
+    res.status(200).json({
+      success: true,
+      message: "Registration cancelled successfully"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };

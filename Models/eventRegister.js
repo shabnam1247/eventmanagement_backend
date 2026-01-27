@@ -40,6 +40,13 @@ const eventRegistrationSchema = new mongoose.Schema({
     type: String
   },
 
+  attended: {
+    type: Boolean,
+    default: false
+  },
+  attendedAt: {
+    type: Date
+  },
   registeredAt: {
     type: Date,
     default: Date.now

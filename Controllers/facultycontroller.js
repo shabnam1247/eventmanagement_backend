@@ -2,8 +2,61 @@ const Faculty = require('../Models/faculty');
 const emailverification = require("../config/email");
 const Event = require('../Models/event');
 const cloudinary = require("../config/cloudinary");
+const Eventregistermodel = require('../Models/eventRegister');
 
-// Create a new faculty
+// Mark user attendance for an event
+exports.markAttendance = async (req, res) => {
+  try {
+    const { regId } = req.params;
+
+    const registration = await Eventregistermodel.findById(regId).populate('eventid');
+    
+    if (!registration) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration not found"
+      });
+    }
+
+    if (registration.attended) {
+      return res.status(400).json({
+        success: false,
+        message: "User has already checked in",
+        registration: {
+          firstName: registration.firstName,
+          lastName: registration.lastName,
+          eventTitle: registration.eventid?.title,
+          attendedAt: registration.attendedAt
+        }
+      });
+    }
+
+    // Mark as attended
+    registration.attended = true;
+    registration.attendedAt = new Date();
+    await registration.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Attendance marked successfully",
+      registration: {
+        firstName: registration.firstName,
+        lastName: registration.lastName,
+        eventTitle: registration.eventid?.title,
+        attendedAt: registration.attendedAt,
+        email: registration.email,
+        department: registration.department,
+        year: registration.year
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 exports.createFaculty = async (req, res) => {
     try {
         const { name, email, password, phonenumber, facultyId, department } = req.body;
