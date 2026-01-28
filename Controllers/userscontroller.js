@@ -566,3 +566,14 @@ exports.changePassword = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+exports.getAllFaculties = async (req, res) => {
+    try {
+        const Faculty = require('../Models/faculty');
+        const faculties = await Faculty.find({ isVerified: true, isapproved: true })
+            .select('name department facultyId email');
+        res.status(200).json({ success: true, faculties });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -1,5 +1,5 @@
 const express=require("express");
-const { createUser, verifyUserOtp, loginUser, getEvents, getEventById, checkRegistrationStatus, getUserRegistrations, cancelRegistration, searchEventByName, Eventregister, registerForEvent, submitFeedback } = require("../Controllers/userscontroller");
+const { createUser, verifyUserOtp, loginUser, getEvents, getEventById, checkRegistrationStatus, getUserRegistrations, cancelRegistration, searchEventByName, Eventregister, registerForEvent, submitFeedback, getAllFaculties } = require("../Controllers/userscontroller");
 const feedbackController = require("../Controllers/feedbackcontroller");
 
 const router=express.Router();
@@ -23,6 +23,7 @@ const { getUserProfile, updateUserProfile, changePassword } = require("../Contro
 router.get('/profile/:userId', getUserProfile)
 router.put('/profile/:userId', updateUserProfile)
 router.put('/profile/:userId/change-password', changePassword)
+router.get('/faculties', getAllFaculties)
 
 // resendotp
 module.exports=router;
