@@ -12,13 +12,28 @@ const cloudinary = require("../config/cloudinary");
 
 exports.getFeedbacks = async (req, res) => {
   try {
-    const feedbacks = await Feedback.find().sort({ createdAt: -1 });
+    const feedbacks = await Feedback.find()
+      .populate('eventId', 'title')
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 });
+
+    // Transform for frontend compatibility if needed
+    const formattedFeedbacks = feedbacks.map(f => ({
+      _id: f._id,
+      rating: f.rating,
+      message: f.message,
+      createdAt: f.createdAt,
+      name: f.userId?.name || "Verified Student",
+      email: f.userId?.email || "Email hidden",
+      eventTitle: f.eventId?.title || "Deleted Event"
+    }));
+
     res.status(200).json({
       success: true,
-      feedbacks
+      feedbacks: formattedFeedbacks
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -66,7 +81,7 @@ exports.loginAdmin = async (req, res) => {
 
 exports.getAllEvents=async(req,res)=>{
   try {
-    const events=await Event.find().populate('category').populate('organizer','name').populate('speakers','name')
+    const events=await Event.find().populate('category').populate('organizer','name email facultyId department').populate('speakers','name')
 
     if(!events){
       return res.status(404).json({message:"No events found"})
@@ -381,7 +396,7 @@ exports.getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
       .populate('category', 'name')
-      .populate('organizer', 'name email');
+      .populate('organizer', 'name email facultyId department');
       console.log(event,"event");
 
     if (!event) {

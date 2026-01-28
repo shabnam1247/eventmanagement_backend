@@ -429,23 +429,31 @@ exports.getUserRegistrations = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    const formattedRegistrations = registrations.map(reg => ({
-      _id: reg._id,
-      event: reg.eventid ? {
-        _id: reg.eventid._id,
-        title: reg.eventid.title,
-        date: reg.eventid.date,
-        timing: reg.eventid.timing,
-        location: reg.eventid.location,
-        category: reg.eventid.category?.name || 'General',
-        image: reg.eventid.image,
-        status: reg.eventid.status
-      } : null,
-      registeredAt: reg.createdAt,
-      firstName: reg.firstName,
-      lastName: reg.lastName,
-      department: reg.department,
-      year: reg.year
+    const formattedRegistrations = await Promise.all(registrations.map(async reg => {
+      // Check if feedback exists for this registration
+      const feedback = await Feedback.findOne({ registrationId: reg._id });
+      
+      return {
+        _id: reg._id,
+        event: reg.eventid ? {
+          _id: reg.eventid._id,
+          title: reg.eventid.title,
+          date: reg.eventid.date,
+          timing: reg.eventid.timing,
+          location: reg.eventid.location,
+          category: reg.eventid.category?.name || 'General',
+          image: reg.eventid.image,
+          status: reg.eventid.status
+        } : null,
+        registeredAt: reg.createdAt,
+        firstName: reg.firstName,
+        lastName: reg.lastName,
+        department: reg.department,
+        year: reg.year,
+        attended: reg.attended,
+        attendedAt: reg.attendedAt,
+        feedbackSubmitted: !!feedback
+      };
     }));
 
     res.status(200).json({
@@ -494,4 +502,67 @@ exports.cancelRegistration = async (req, res) => {
       message: error.message
     });
   }
+};
+
+// Get User Profile
+exports.getUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await users.findById(userId).select('-password -otp -otpExpires');
+        
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({ success: true, user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Update User Profile
+exports.updateUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { name, phonenumber, department, year } = req.body;
+
+        const user = await users.findByIdAndUpdate(
+            userId,
+            { name, phonenumber, department, year },
+            { new: true }
+        ).select('-password -otp -otpExpires');
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Profile updated successfully", user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Change Password
+exports.changePassword = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { oldPassword, newPassword } = req.body;
+
+        const user = await users.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // Check old password
+        if (user.password !== oldPassword) {
+            return res.status(400).json({ success: false, message: "Incorrect old password" });
+        }
+
+        user.password = newPassword;
+        await user.save();
+
+        res.status(200).json({ success: true, message: "Password updated successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

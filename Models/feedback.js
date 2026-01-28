@@ -1,17 +1,20 @@
 const mongoose = require('mongoose');
 
 const feedbackSchema = new mongoose.Schema({
-  name: {
-    type: String,
+  eventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event',
     required: true
   },
-  email: {
-    type: String,
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true
   },
-  phone: {
-    type: String,
-    required: false
+  registrationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'EventRegistration',
+    required: true
   },
   rating: {
     type: Number,
