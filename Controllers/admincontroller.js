@@ -636,6 +636,12 @@ exports.getDashboardStats = async (req, res) => {
       }
     ]);
 
+    // Calculate attendance stats
+    const totalAttendance = await EventRegistration.countDocuments({ attended: true });
+    const avgAttendanceRate = totalRegistrations > 0 
+      ? Math.round((totalAttendance / totalRegistrations) * 100) 
+      : 0;
+
     const stats = {
       totalEvents,
       upcomingEvents,
@@ -648,8 +654,8 @@ exports.getDashboardStats = async (req, res) => {
       eventCategories,
       latestRegistrations,
       popularEvents,
-      totalAttendance: 0, // Placeholder since not tracked
-      avgAttendanceRate: 0 // Placeholder
+      totalAttendance,
+      avgAttendanceRate
     };
 
     res.status(200).json({
