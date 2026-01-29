@@ -14,10 +14,15 @@ exports.createUser = async (req, res) => {
         console.log("hj");
         const { name, email, password, regno, department, year, phonenumber } = req.body;
 
-        // Check if user already exists
-        const exist = await users.findOne({ email });
-        if (exist) {
+        // Check if user already exists (email or regno)
+        const emailExist = await users.findOne({ email });
+        if (emailExist) {
             return res.status(400).json({ message: "Email already registered" });
+        }
+
+        const regnoExist = await users.findOne({ regno });
+        if (regnoExist) {
+            return res.status(400).json({ message: "Registration number already exists" });
         }
 
         // Generate OTP
@@ -48,6 +53,30 @@ exports.createUser = async (req, res) => {
 
     } catch (error) {
         console.log(error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.resendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: "Email is required" });
+
+        const user = await users.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // Generate new OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = Date.now() + 10 * 60 * 1000;
+
+        user.otp = otp;
+        user.otpExpires = otpExpiry;
+        await user.save();
+
+        sentotpemail(email, otp);
+        res.status(200).json({ success: true, message: "New OTP sent to your email" });
+
+    } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };

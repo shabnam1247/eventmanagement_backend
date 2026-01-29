@@ -1,5 +1,5 @@
 const Faculty = require('../Models/faculty');
-const emailverification = require("../config/email");
+const { sentotpemail } = require("../config/email");
 const Event = require('../Models/event');
 const cloudinary = require("../config/cloudinary");
 const Eventregistermodel = require('../Models/eventRegister');
@@ -85,7 +85,7 @@ exports.createFaculty = async (req, res) => {
         await newFaculty.save();
 
         // Send OTP
-        emailverification(email, otp);
+        await sentotpemail(email, otp);
 
         res.status(201).json({
             message: "Faculty created successfully. OTP sent to email.",

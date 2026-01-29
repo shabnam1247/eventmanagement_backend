@@ -1,5 +1,5 @@
 const express=require("express");
-const { createUser, verifyUserOtp, loginUser, getEvents, getEventById, checkRegistrationStatus, getUserRegistrations, cancelRegistration, searchEventByName, Eventregister, registerForEvent, submitFeedback, getAllFaculties, getCertificateData } = require("../Controllers/userscontroller");
+const { createUser, verifyUserOtp, resendOtp, loginUser, getEvents, getEventById, checkRegistrationStatus, getUserRegistrations, cancelRegistration, searchEventByName, Eventregister, registerForEvent, submitFeedback, getAllFaculties, getCertificateData } = require("../Controllers/userscontroller");
 const feedbackController = require("../Controllers/feedbackcontroller");
 
 const router=express.Router();
@@ -7,6 +7,7 @@ const router=express.Router();
 // jwt
 router.post('/register',createUser)
 router.post('/otpverify',verifyUserOtp)
+router.post('/resend-otp', resendOtp)
 router.post('/login',loginUser) 
 router.get('/events',getEvents)
 router.get('/events/:id',getEventById)
