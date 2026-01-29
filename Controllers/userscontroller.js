@@ -577,3 +577,40 @@ exports.getAllFaculties = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// Get data for certificate generation
+exports.getCertificateData = async (req, res) => {
+    try {
+        const { registrationId } = req.params;
+
+        const registration = await Eventregistermodel.findById(registrationId)
+            .populate('eventid')
+            .populate('userid', 'name');
+
+        if (!registration) {
+            return res.status(404).json({ success: false, message: "Registration not found" });
+        }
+
+        if (!registration.attended) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Certificate is only available for attendees" 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                studentName: registration.firstName + " " + registration.lastName,
+                eventTitle: registration.eventid.title,
+                eventDate: registration.eventid.date,
+                category: registration.eventid.category, 
+                location: registration.eventid.location,
+                issueDate: registration.attendedAt || new Date()
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

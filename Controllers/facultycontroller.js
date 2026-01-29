@@ -445,7 +445,7 @@ exports.getDashboardStats = async (req, res) => {
         const { facultyId } = req.params;
 
         // 1. Basic Counts
-        const events = await Event.find({ organizer: facultyId });
+        const events = await Event.find({ organizer: facultyId }).populate('category', 'name');
         const eventIds = events.map(e => e._id);
 
         const registrations = await Eventregistermodel.find({ eventid: { $in: eventIds } });
@@ -461,23 +461,49 @@ exports.getDashboardStats = async (req, res) => {
             ? (feedbacks.reduce((acc, f) => acc + f.rating, 0) / feedbacks.length).toFixed(1)
             : 0;
 
-        // 3. Category Split
+        // 3. Category Split (using real names)
         const categoryStats = events.reduce((acc, event) => {
-            // Since we need category names, and events.category is an ID, we might need to populate or just count by ID
-            // For simplicity, let's just count and we can populate later if needed or return IDs
-            const catId = event.category.toString();
-            acc[catId] = (acc[catId] || 0) + 1;
+            const catName = event.category?.name || 'Uncategorized';
+            acc[catName] = (acc[catName] || 0) + 1;
             return acc;
         }, {});
 
-        // 4. Registration Trend (Last 4 weeks)
-        // This is a simplified version, ideally we'd use mongo aggregation
-        const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-        const registrationTrend = weeks.map((w, i) => ({
-            date: w,
-            registrations: Math.floor(totalRegistrations / 4) + (i * 10), // Placeholder logic for now
-            attendance: Math.floor(totalAttendance / 4) + (i * 5)
-        }));
+        // 4. Registration Trend (Actual last 4 weeks)
+        const fourWeeksAgo = new Date();
+        fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+        // Grouping by week using aggregation
+        const trendData = await Eventregistermodel.aggregate([
+            {
+                $match: {
+                    eventid: { $in: eventIds },
+                    registeredAt: { $gte: fourWeeksAgo }
+                }
+            },
+            {
+                $project: {
+                    week: { $ceil: { $divide: [{ $subtract: [new Date(), "$registeredAt"] }, 1000 * 60 * 60 * 24 * 7] } },
+                    attended: 1
+                }
+            },
+            {
+                $group: {
+                    _id: "$week",
+                    count: { $sum: 1 },
+                    attendance: { $sum: { $cond: ["$attended", 1, 0] } }
+                }
+            },
+            { $sort: { "_id": -1 } } // Show from oldest to newest week
+        ]);
+
+        const registrationTrend = [1, 2, 3, 4].map(w => {
+            const weekStats = trendData.find(d => d._id === 5 - w); // Reversing the bucket logic for display
+            return {
+                date: `Week ${w}`,
+                registrations: weekStats ? weekStats.count : 0,
+                attendance: weekStats ? weekStats.attendance : 0
+            };
+        });
 
         // 5. Detailed Event List
         const eventStats = events.map(event => {
@@ -499,6 +525,7 @@ exports.getDashboardStats = async (req, res) => {
                 totalRegistrations,
                 totalAttendance,
                 avgRating,
+                categoryStats,
                 registrationTrend,
                 eventStats
             }

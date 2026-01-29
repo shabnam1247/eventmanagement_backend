@@ -1,5 +1,5 @@
 const express=require("express");
-const { createUser, verifyUserOtp, loginUser, getEvents, getEventById, checkRegistrationStatus, getUserRegistrations, cancelRegistration, searchEventByName, Eventregister, registerForEvent, submitFeedback, getAllFaculties } = require("../Controllers/userscontroller");
+const { createUser, verifyUserOtp, loginUser, getEvents, getEventById, checkRegistrationStatus, getUserRegistrations, cancelRegistration, searchEventByName, Eventregister, registerForEvent, submitFeedback, getAllFaculties, getCertificateData } = require("../Controllers/userscontroller");
 const feedbackController = require("../Controllers/feedbackcontroller");
 
 const router=express.Router();
@@ -24,6 +24,9 @@ router.get('/profile/:userId', getUserProfile)
 router.put('/profile/:userId', updateUserProfile)
 router.put('/profile/:userId/change-password', changePassword)
 router.get('/faculties', getAllFaculties)
+
+// Certificate Route
+router.get('/certificate-data/:registrationId', getCertificateData)
 
 // resendotp
 module.exports=router;
