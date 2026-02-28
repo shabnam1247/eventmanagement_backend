@@ -7,7 +7,7 @@ exports.submitFeedback = async (req, res) => {
 
     // 1. Verify that the user actually registered and attended the event
     const registration = await EventRegistration.findById(registrationId);
-
+    
     if (!registration) {
       return res.status(404).json({ success: false, message: "Registration not found" });
     }
@@ -22,9 +22,9 @@ exports.submitFeedback = async (req, res) => {
     // 2. Check if feedback has already been submitted for this registration
     const existingFeedback = await Feedback.findOne({ registrationId });
     if (existingFeedback) {
-      return res.status(400).json({
-        success: false,
-        message: "You have already submitted feedback for this event."
+      return res.status(400).json({ 
+        success: false, 
+        message: "You have already submitted feedback for this event." 
       });
     }
 
@@ -39,10 +39,10 @@ exports.submitFeedback = async (req, res) => {
 
     await newFeedback.save();
 
-    res.status(201).json({
-      success: true,
-      message: "Thank you for your feedback!",
-      feedback: newFeedback
+    res.status(201).json({ 
+      success: true, 
+      message: "Thank you for your feedback!", 
+      feedback: newFeedback 
     });
 
   } catch (error) {
@@ -55,7 +55,7 @@ exports.getEventFeedback = async (req, res) => {
   try {
     const { eventId } = req.params;
     const feedbacks = await Feedback.find({ eventId }).populate('userId', 'name email');
-
+    
     res.status(200).json({ success: true, feedbacks });
   } catch (error) {
     console.error("Fetch feedback error:", error);
@@ -67,9 +67,9 @@ exports.checkFeedbackStatus = async (req, res) => {
   try {
     const { registrationId } = req.params;
     const feedback = await Feedback.findOne({ registrationId });
-
-    res.status(200).json({
-      success: true,
+    
+    res.status(200).json({ 
+      success: true, 
       hasSubmitted: !!feedback,
       feedback: feedback
     });
