@@ -12,12 +12,12 @@ exports.submitFeedback = async (req, res) => {
       return res.status(404).json({ success: false, message: "Registration not found" });
     }
 
-    if (!registration.attended) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Only attendees can provide feedback for this event." 
-      });
-    }
+    // if (!registration.attended) {
+    //   return res.status(403).json({ 
+    //     success: false, 
+    //     message: "Only attendees can provide feedback for this event." 
+    //   });
+    // }
 
     // 2. Check if feedback has already been submitted for this registration
     const existingFeedback = await Feedback.findOne({ registrationId });
